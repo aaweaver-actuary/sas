@@ -1,25 +1,41 @@
 /* 
 This helper macro truncates a given string to ensure that it fits within the 32-character 
-limit for SAS macro variable names. It takes a base name and adds the suffix "_PROGRESS_BAR_VAR", 
-truncating the base name as needed to make the combined string fit within the limit.
+limit for SAS macro variable names. It first tries to truncate the suffix "_PROGRESS_BAR_VAR", 
+and if the combined string is still too long, it then truncates the base name.
 
 Arguments:
-base_name: The base name to be truncated to fit within the limit.
+base_name: The base name that might be truncated to fit within the limit.
 */
 %macro truncate_name(base_name);
-    /* Calculate the length of the suffix */
-    %let suffix_len = %length(_PROGRESS_BAR_VAR);
+    /* Define the full suffix */
+    %let full_suffix = _PROGRESS_BAR_VAR;
 
-    /* Calculate the maximum length for the base name */
-    %let max_base_name_len = 32 - &suffix_len;
+    /* Calculate the length of the base name and the full suffix */
+    %let base_name_len = %length(&base_name);
+    %let full_suffix_len = %length(&full_suffix);
 
-    /* Truncate the base name if it is too long */
-    %if %length(&base_name) > &max_base_name_len %then
-        %let base_name = %substr(&base_name, 1, &max_base_name_len);
+    /* Initialize the actual suffix to the full suffix */
+    %let suffix = &full_suffix;
 
-    /* Return the truncated base name with the suffix */
-    &base_name._PROGRESS_BAR_VAR
+    /* If the combined length of the base name and full suffix exceeds 32, then we need to truncate */
+    %if &base_name_len + &full_suffix_len > 32 %then %do;
+        /* Calculate the maximum length for the suffix */
+        %let max_suffix_len = 32 - &base_name_len;
+
+        /* If the maximum length for the suffix is greater than 0, truncate the suffix */
+        %if &max_suffix_len > 0 %then
+            %let suffix = %substr(&full_suffix, 1, &max_suffix_len);
+        /* Else, the suffix should be empty and the base name should be truncated */
+        %else %do;
+            %let suffix = ;
+            %let base_name = %substr(&base_name, 1, 32);
+        %end;
+    %end;
+
+    /* Return the base name with the (possibly truncated) suffix */
+    &base_name.&suffix
 %mend truncate_name;
+
 
 /* 
 This macro initializes the variables necessary for the creation and updating of a progress bar 
