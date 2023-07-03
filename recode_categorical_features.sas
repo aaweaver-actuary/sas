@@ -8,15 +8,17 @@ Arguments:
 libname: Name of the library where the input dataset is stored.
 dsname: Name of the input dataset to be processed.
 outdsname: Name of the output dataset to be created.
+outlibname: Name of the library where the output dataset will be created. Defaults to work.
 */
 
-%macro recode_categorical_features(libname=, dsname=, outdsname=);
+%macro recode_categorical_features(libname=, dsname=, outdsname=, outlibname=work);
     /* 
     The following PROC SQL step retrieves the names of all character-type columns in the input
     dataset, which are assumed to be categorical. The names are stored in a macro variable for 
     later use.
     */
     proc sql noprint;
+        sysecho "collect all character columns";
         select name
         into :charvars separated by ' '
         from dictionary.columns
@@ -38,21 +40,24 @@ outdsname: Name of the output dataset to be created.
         unique integer for each distinct value of the categorical variable.
         */
         proc sql;
-            create table lookup_&var as 
+            sysecho "creating lookup table for &i. / &nvars. %eval((100 * &i.)/&nvars.)%";
+            create table &outlibname..lookup_&var as 
             select distinct &var, monotonic() as int_value
-            from &libname..&dsname;
+            from &libname..&dsname(keep=&var);
             /* Create an index to optimize lookup speed */
             create index &var on lookup_&var(&var);
         quit;
     %end;
     
     /* Create a copy of the original dataset that we'll modify */
-    data &libname..&outdsname;
+    data &outlibname..&outdsname;
+        sysecho "creating copy of original dataset";
         set &libname..&dsname;
         /* For each categorical variable, replace the original value with the integer mapping */
         %do i = 1 %to &nvars;
             %let var = %scan(&charvars, &i);
             if _n_ = 1 then do;
+                sysecho "building hash map object";
                 /* This block of code is only executed on the first iteration (i.e., when reading the first row of data) */
                 /* It loads the lookup table into a hash object for fast lookup */
                 declare hash h(dataset: "lookup_&var");
@@ -60,6 +65,7 @@ outdsname: Name of the output dataset to be created.
                 h.defineData("int_value");
                 h.defineDone();
             end;
+            sysecho "mapping &i. / &nvars.";
             /* Look up the integer value for the current row and replace the original value */
             rc = h.find();
             if rc = 0 then &var = int_value; /* If the lookup is successful, replace the value */
@@ -67,7 +73,8 @@ outdsname: Name of the output dataset to be created.
     run;
     
     /* Create a metadata table to aid in reconstructing the original dataset */
-    data metadata;
+    data &outlibname..metadata;
+        sysecho "building metadata table";
         length orig_col_name lookup_table_name int_id_col_name $32.;
         /* For each categorical variable, add a row to the metadata table */
         %do i = 1 %to &nvars;
