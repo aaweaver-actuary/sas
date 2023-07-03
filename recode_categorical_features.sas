@@ -30,6 +30,7 @@ outlibname: Name of the library where the output dataset will be created. Defaul
     /* Determine the number of categorical variables */
     %let nvars = %sysfunc(countw(&charvars));
 
+	
     /* Process each categorical variable */
     %do i = 1 %to &nvars;
         /* Get the name of the i-th categorical variable */
@@ -40,7 +41,8 @@ outlibname: Name of the library where the output dataset will be created. Defaul
         unique integer for each distinct value of the categorical variable.
         */
         proc sql;
-            sysecho "creating lookup table for &i. / &nvars. %eval((100 * &i.)/&nvars.)%";
+            sysecho "1. creating lookup tables - &i./&nvars. (%sysfunc(round(100*&i./&nvars., 0.1))%)";
+			%put("1-create lookup tables - &i / &N");
             create table &outlibname..lookup_&var as 
             select distinct &var, monotonic() as int_value
             from &libname..&dsname(keep=&var);
@@ -65,7 +67,7 @@ outlibname: Name of the library where the output dataset will be created. Defaul
                 h.defineData("int_value");
                 h.defineDone();
             end;
-            sysecho "mapping &i. / &nvars.";
+            sysecho "2. building mapping - &i./&nvars. (%sysfunc(round(100*&i./&nvars., 0.1))%)";
             /* Look up the integer value for the current row and replace the original value */
             rc = h.find();
             if rc = 0 then &var = int_value; /* If the lookup is successful, replace the value */
