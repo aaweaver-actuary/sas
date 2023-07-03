@@ -107,6 +107,6 @@ start_time_PROGRESS_BAR_VAR: Start time of the iteration.
     %let est_remaining = &est_remaining &est_remaining_seconds sec. remaining) ;
 
     /* Display the progress bar and estimated remaining time */
-    %sysecho "%truncate_name(desc) &est_remaining - &bar";
+    sysecho "%truncate_name(desc) &est_remaining - &bar";
 %mend progressIter;
 
