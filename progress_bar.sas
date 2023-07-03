@@ -36,7 +36,6 @@ base_name: The base name that might be truncated to fit within the limit.
     &base_name.&suffix
 %mend truncate_name;
 
-
 /* 
 This macro initializes the variables necessary for the creation and updating of a progress bar 
 in SAS. The macro takes the description of the progress, total number of items to iterate over, 
@@ -50,12 +49,12 @@ bar_character: Character used to represent progress. Defaults to "=".
 progress_bar_width: Width of the progress bar. Defaults to 50.
 */
 %macro progressInit(desc, N, bar_character= =, progress_bar_width=50);
-    %global %truncate_name(desc) %truncate_name(N) %truncate_name(bar_character) %truncate_name(progress_bar_width) %truncate_name(start_time);
-    %let %truncate_name(desc) = &desc;
-    %let %truncate_name(N) = &N;
-    %let %truncate_name(bar_character) = &bar_character;
-    %let %truncate_name(progress_bar_width) = &progress_bar_width;
-    %let %truncate_name(start_time) = %sysfunc(datetime());
+    /* Use the %symput function to create and assign values to macro variables */
+    %symput(%truncate_name(desc), &desc);
+    %symput(%truncate_name(N), &N);
+    %symput(%truncate_name(bar_character), &bar_character);
+    %symput(%truncate_name(progress_bar_width), &progress_bar_width);
+    %symput(%truncate_name(start_time), %sysfunc(datetime()));
 %mend progressInit;
 
 /* 
