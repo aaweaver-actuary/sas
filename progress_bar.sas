@@ -1,3 +1,15 @@
+/* 
+This macro initializes the variables necessary for the creation and updating of a progress bar 
+in SAS. The macro takes the description of the progress, total number of items to iterate over, 
+the character used to represent progress, and the width of the progress bar. It creates global 
+variables for these parameters, along with a global variable for the start time of the iteration.
+
+Arguments:
+desc: Description of the progress.
+N: Total number of items to iterate over.
+bar_character: Character used to represent progress. Defaults to "=".
+progress_bar_width: Width of the progress bar. Defaults to 50.
+*/
 %macro progressInit(desc, N, bar_character= =, progress_bar_width=50);
     %global PROGRESS_BAR_VARIABLE_desc PROGRESS_BAR_VARIABLE_N PROGRESS_BAR_VARIABLE_bar_character PROGRESS_BAR_VARIABLE_progress_bar_width PROGRESS_BAR_VARIABLE_start_time;
     %let PROGRESS_BAR_VARIABLE_desc = &desc;
@@ -7,6 +19,22 @@
     %let PROGRESS_BAR_VARIABLE_start_time = %sysfunc(datetime());
 %mend progressInit;
 
+/* 
+This macro updates the progress bar after each iteration. It calculates the current progress 
+ratio, the number of filled and empty slots in the progress bar, and the estimated time 
+remaining based on the elapsed time and progress ratio. It then displays the updated progress 
+bar and the estimated remaining time in hours, minutes, and seconds.
+
+Arguments:
+i: Current item number in the iteration.
+
+Global variables used:
+PROGRESS_BAR_VARIABLE_desc: Description of the progress.
+PROGRESS_BAR_VARIABLE_N: Total number of items.
+PROGRESS_BAR_VARIABLE_bar_character: Character used to represent progress.
+PROGRESS_BAR_VARIABLE_progress_bar_width: Width of the progress bar.
+PROGRESS_BAR_VARIABLE_start_time: Start time of the iteration.
+*/
 %macro progressIter(i);
     %local current_progress ratio num_filled num_empty bar elapsed_time est_remaining_hours est_remaining_minutes est_remaining_seconds est_remaining;
 
