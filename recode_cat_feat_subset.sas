@@ -61,7 +61,7 @@ creates a 'metadata' dataset that includes information needed to reconstruct the
         We also create an index on the lookup table for fast lookup operations in the subsequent data step.
         */
         proc sql;
-            sysecho "1. creating lookup tables - &i./&nvars. (%sysfunc(round(100*&i./&nvars., 0.1))%)";
+            sysecho "1. creating lookup tables - &i./&nvars. (%sysfunc(round(100*(&i. - &start. + 1)/(&end. - &start. + 1)., 0.1))%)";
             create table &outlibname..lookup_&var as 
             select distinct &var, monotonic() as int_value
             from &libname..&dsname(keep=&var);
@@ -90,7 +90,7 @@ creates a 'metadata' dataset that includes information needed to reconstruct the
                 h.defineDone();
             end;
             /* Replace the original categorical value with the corresponding integer */
-            sysecho "2. building mapping - &i./&nvars. (%sysfunc(round(100*&i./&nvars., 0.1))%)";
+            sysecho "2. building mapping - &i./&nvars. (%sysfunc(round(100*(&i. - &start. + 1)/(&end. - &start. + 1)., 0.1))%)";
             rc = h.find();
             if rc = 0 then &var = int_value;
         %end;
