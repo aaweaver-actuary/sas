@@ -65,7 +65,7 @@ creates a 'metadata' dataset that includes information needed to reconstruct the
             create table &outlibname..lookup_&var as 
             select distinct &var, monotonic() as int_value
             from &libname..&dsname(keep=&var);
-            create index &var on lookup_&var(&var);
+            create index &var on &outlibname..lookup_&var(&var);
         quit;
     %end;
 
@@ -84,7 +84,7 @@ creates a 'metadata' dataset that includes information needed to reconstruct the
             */
             if _n_ = 1 then do;
                 sysecho "building hash map object";
-                declare hash h(dataset: "lookup_&var");
+                declare hash h(dataset: "&outlibname..lookup_&var");
                 h.defineKey("&var");
                 h.defineData("int_value");
                 h.defineDone();
@@ -107,7 +107,7 @@ creates a 'metadata' dataset that includes information needed to reconstruct the
         %do i = &start %to &end;
             %let var = %scan(&charvars, &i);
             orig_col_name = "&var";
-            lookup_table_name = "lookup_&var";
+            lookup_table_name = "&outlibname..lookup_&var";
             int_id_col_name = "int_value";
             output;
         %end;
