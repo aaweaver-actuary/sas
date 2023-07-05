@@ -24,7 +24,7 @@ The following call to the macro recodes the first 10 categorical columns in the 
 stored in the 'mylib' library. The output dataset, which is stored in the 'work' library and 
 named 'sales_recoded', includes the recoded columns and the 'transaction_id' column:
 
-    %recode_categorical_feature_subset(libname=mylib, dsname=sales, outdsname=sales_recoded, outlibname=work, start=1, end=10, keyvars=transaction_id);
+    %recode_cat_feat_subset(libname=mylib, dsname=sales, outdsname=sales_recoded, outlibname=work, start=1, end=10, keyvars=transaction_id);
 
 The macro first collects all character columns in the 'sales' dataset. It then creates lookup tables 
 for the first 10 columns and recodes the original categorical values to integer values in these columns. 
@@ -32,7 +32,11 @@ The 'sales_recoded' dataset includes the recoded columns and the 'transaction_id
 creates a 'metadata' dataset that includes information needed to reconstruct the original dataset.
 */
 
-%macro recode_categorical_feature_subset(libname=, dsname=, outdsname=, outlibname=work, start=, end=, keyvars=);
+%macro recode_cat_feat_subset(libname=, dsname=, outdsname=, outlibname=work, start=, end=, keyvars=);
+    /* 
+    Use PROC SQL to retrieve all character-type columns in the dataset, which are typically the categorical features.
+    These names are stored in a macro variable, charvars.
+    */
     proc sql noprint;
         sysecho "collect all character columns";
         select name
@@ -43,12 +47,19 @@ creates a 'metadata' dataset that includes information needed to reconstruct the
             and type = 'char';
     quit;
 
-    /* Determine the number of categorical variables */
+    /* Calculate the number of categorical features retrieved */
     %let nvars = %sysfunc(countw(&charvars));
 
-    /* Process each categorical variable in the specified range */
+    /* Loop through the range of categorical features specified by start and end */
     %do i = &start %to &end;
+        /* Get the name of the current feature */
         %let var = %scan(&charvars, &i);
+
+        /* 
+        Use PROC SQL to create a lookup table for each feature. The lookup table maps each distinct category in the feature 
+        to a unique integer, which is calculated by the monotonic() function.
+        We also create an index on the lookup table for fast lookup operations in the subsequent data step.
+        */
         proc sql;
             sysecho "1. creating lookup tables - &i./&nvars. (%sysfunc(round(100*&i./&nvars., 0.1))%)";
             create table &outlibname..lookup_&var as 
@@ -58,12 +69,19 @@ creates a 'metadata' dataset that includes information needed to reconstruct the
         quit;
     %end;
 
+    /* Create a new dataset that will contain the recoded features and the transaction identifiers */
     data &outlibname..&outdsname;
         sysecho "creating copy of original dataset";
-        /* Keep the key columns and the categorical variables to be recoded */
+        /* We only keep the key variables and the features to be recoded */
         set &libname..&dsname(keep=&keyvars &charvars);
+
+        /* Loop through the categorical features again */
         %do i = &start %to &end;
             %let var = %scan(&charvars, &i);
+            /* 
+            When reading the first row of data, load the lookup table for the current feature into a hash object.
+            This allows fast lookup operations when replacing the original categorical values with integers.
+            */
             if _n_ = 1 then do;
                 sysecho "building hash map object";
                 declare hash h(dataset: "lookup_&var");
@@ -71,15 +89,21 @@ creates a 'metadata' dataset that includes information needed to reconstruct the
                 h.defineData("int_value");
                 h.defineDone();
             end;
+            /* Replace the original categorical value with the corresponding integer */
             sysecho "2. building mapping - &i./&nvars. (%sysfunc(round(100*&i./&nvars., 0.1))%)";
             rc = h.find();
             if rc = 0 then &var = int_value;
         %end;
     run;
 
+    /* Create a metadata table for bookkeeping */
     data &outlibname..metadata;
         sysecho "building metadata table";
         length orig_col_name lookup_table_name int_id_col_name $32.;
+        /* 
+        For each recoded feature, store the name of the original column, the name of the lookup table, 
+        and the name of the column in the lookup table that contains the integer values.
+        */
         %do i = &start %to &end;
             %let var = %scan(&charvars, &i);
             orig_col_name = "&var";
@@ -88,4 +112,4 @@ creates a 'metadata' dataset that includes information needed to reconstruct the
             output;
         %end;
     run;
-%mend recode_categorical_feature_subset;
+%mend recode_cat_feat_subset;
