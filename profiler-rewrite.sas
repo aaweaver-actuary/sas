@@ -132,7 +132,6 @@ the last run of the macro. */
 the entire SAS session, not just within this macro. */
 %global profiler_start_time profiler_end_time profiler_step;
 
-    
 %if not %symexist(profiler_start_time) or %superq(profiler_start_time)= %then %do;
 	%let profiler_start_time = %sysfunc(datetime());
 %end;
@@ -147,17 +146,16 @@ exist, this is the first run of the macro. */
 %if &first_time=1 %then %do;
 	%profilerStart(desc=&desc., profiler_output_name=&profiler_output_name.);
 %end;
+
 %put after start;
     
 %put before subsequent;
 /* If the macro variable profiler_start_time exists, this is not the first
 run of the macro. */
-%else %do;
+%if &first_time ne 1 %then %do;
     /* Subsequent runs of the macro: Calculate the time taken for the previous
 	step and add a row for the next step. */
 	%profilerSubsequent(desc=&desc., profiler_output_name=&profiler_output_name.);
 %end;
 %put after subsequent;
-      
-        
 %mend profiler;
