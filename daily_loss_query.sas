@@ -1,7 +1,17 @@
+/* Macro to format zip codes */
+%macro format_zips(col);
+INPUT(SUBSTR(&col., 1, 5), 5.)
+%mend format_zips;
+
+/* Only include transactions that have occurred since the last update */
+%let lastUpdateDate=; /* Set to last updated date */
+%let lastUpdatePath=/sas/data/project/EG/ActShare/SmallBusiness/aw/conrols/lastUpdate.txt;
+%include "&lastUpdatePath."; /* Read in last updated date */
+
+
 proc sql;
    create table read_daily_loss as
-   select ACCT_DT format date12. as cal_date, 
-          ACCT_YEAR as cy, 
+   select ACCT_YEAR as cy, 
           ACCT_MONTH as cm, 
           CLAIM_NBR as claim_numb, 
           SUBCLAIM_NBR as subclaim_numb, 
@@ -48,17 +58,11 @@ proc sql;
           BUREAU_TYPE_CD as type_bureau,
           SUBLINE_NBR as subline_numb,
           RISK_ST_NBR as risk_st,
-          RISK_ST_NM as risk_st_name,
-          RISK_ST_CD as risk_st_abbrev,
-          RISK_ZIP as risk_zip,
+          %format_zips(RISK_ZIP) as risk_zip,
           RISK_TERR_CD as risk_territory,
           AGCY_FULL_NBR as agency_full_numb,
           AGCY_ST_NBR as agency_st,
-          AGCY_ST_CD as agency_st_abbrev,
-          AGCY_ST_NM as agency_st_name,
           ACCIDENT_ST_NBR as accident_st,
-          ACCIDENT_ST_CD as accident_st_abbrev,
-          ACCIDENT_ST_NM as accident_st_name,
           CATASTROPHE_START as cat_start,
           CATASTROPHE_END as cat_end,
           CATASTROPHE_CD as cat_code,
@@ -80,13 +84,11 @@ proc sql;
           UOB_GRP_ID as uobg,
           MRL_DETAIL_ID as mrl_detail,
           ANNUAL_STMNT_LINE as asl,
-          UOB_GRP_DESC as uobg_desc,
           BUS_LINE as bus_line,
           BUS_SEG as bus_seg,
           UW_LINE as uw_line,
           MRL as mrl,
           MRL_SUB_GRP as mrl_sub_gp,
-          MRL_DETAIL as mrl_detail,
           REINS_TREATY_TYPE_DESC as treaty_type,
           LOSS_TRANS_DT format date12. as trans_date,
           SRC_SYSTEM_CD as source_system,
@@ -94,7 +96,7 @@ proc sql;
           LOSS_LOC_FIPS_COUNTY_CD as county_fips,
           LOSS_LOC_COUNTY_NM as county,
           LOSS_LOC_STATE_CD as state_abbrev,
-          LOSS_LOC_ZIP_CD as zip,
+          %format_zips(LOSS_LOC_ZIP_CD) as zip,
           LOSS_LOC_LOCATION_UNKNOWN_FLAG as loc_unknown, 
           LOSS_LOC_CAT_TREATY_FLAG as covered_by_treaty,
           LOSS_LOC_COUNTRY_CODE as country_code,
@@ -109,12 +111,22 @@ proc sql;
           PMT_NBR as pmt_numb,
           PMT_ITEM_NBR as pmt_item_numb,
           SUIT as suit
-      from dlf.vmonthly_snapshot_loss_txn
-      where POLICY_SYM in
-           (
-           'SBA',
-           'SBB',
-           'SBW',
-           'SBU'
-           );
+      from 
+        dlf.vmonthly_snapshot_loss_txn
+      where 
+        POLICY_SYM in ('SBA', 'SBB','SBW','SBU')
+        and LOSS_TRANS_DT ge "&lastUpdateDate."
+;
 quit;
+
+/* Export to CSV */
+proc export data=read_daily_loss 
+    outfile="/sas/data/project/EG/ActShare/SmallBusiness/aw/daily_loss.csv" 
+    dbms=csv append;
+run;
+
+
+data _null_;
+  file "&lastUpdatePath.";
+  put "%let lastUpdateDate = '" date9. +(-1) "';";  /* Writes yesterday's date */
+run;
